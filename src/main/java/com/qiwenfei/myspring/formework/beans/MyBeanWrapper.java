@@ -11,7 +11,9 @@ import com.qiwenfei.myspring.formework.core.MyFactoryBean;
 public class MyBeanWrapper extends MyFactoryBean {
 
    private   MyAopProxy  aopProxy =  new MyAopProxy() ;
-
+    //还会用到  观察者  模式
+    //1、支持事件响应，会有一个监听
+    private MyBeanPostProcessor postProcessor;
 
    private  Object originalInstance ;//保存原来的对象
 
@@ -32,5 +34,11 @@ public class MyBeanWrapper extends MyFactoryBean {
 
     public Object getWrapperInstance() {
         return wrapperInstance;
+    }
+    public void setPostProcessor(MyBeanPostProcessor postProcessor) {
+        this.postProcessor = postProcessor;
+    }
+    public Object getWrappedInstance(){
+        return this.wrapperInstance;
     }
 }

@@ -6,13 +6,16 @@ import com.qiwenfei.myspring.formework.annotation.MyService;
 import com.qiwenfei.myspring.formework.aop.MyAopConfig;
 import com.qiwenfei.myspring.formework.beans.MyBeanDefinition;
 import com.qiwenfei.myspring.formework.beans.MyBeanDefinitionReader;
+import com.qiwenfei.myspring.formework.beans.MyBeanPostProcessor;
 import com.qiwenfei.myspring.formework.beans.MyBeanWrapper;
 import com.qiwenfei.myspring.formework.core.MyBeanFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,11 +29,14 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
    private String[] configLocations ;
 
    private MyBeanDefinitionReader  beanDefinitionReader ;
+
+    //用来保证注册式单例的容器
+    private Map<String,Object> beanCacheMap = new HashMap<String, Object>();
    
    //保存包装的bean的单例实例
    private Map<String,MyBeanWrapper> beanWrapperMap = new ConcurrentHashMap<String, MyBeanWrapper>();
 
-    public MyApplicationContext(String[] configLocations) {
+    public MyApplicationContext(String... configLocations) {
         this.configLocations = configLocations;
         refresh();
     }
@@ -100,29 +106,39 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
     }
 
     public Object getBean(String beanName) {
-        Object  bean = new Object();
 
         MyBeanDefinition beanDefinition = this.beanDefinitionMap.get(beanName);
 
-        //前置通知事件AOP
+        String className = beanDefinition.getBeanClassName();
 
-        //实例化bean
-        try {
-            bean = instantionBean(beanDefinition);
+        try{
 
-            //对bean经行包装
+            //生成通知事件
+            MyBeanPostProcessor beanPostProcessor = new MyBeanPostProcessor();
 
-            MyBeanWrapper  beanWrapper = new MyBeanWrapper(bean);
+            Object instance = instantionBean(beanDefinition);
+            if(null == instance){ return  null;}
+
+            //在实例初始化以前调用一次
+            beanPostProcessor.postProcessBeforeInitialization(instance,beanName);
+
+            MyBeanWrapper beanWrapper = new MyBeanWrapper(instance);
             beanWrapper.setAopConfig(instantionAopConfig(beanDefinition));
-
+            beanWrapper.setPostProcessor(beanPostProcessor);
             this.beanWrapperMap.put(beanName,beanWrapper);
-            return  this.beanWrapperMap.get(beanName).getWrapperInstance() ;
 
-        } catch (Exception e) {
+            //在实例初始化以后调用一次
+            beanPostProcessor.postProcessAfterInitialization(instance,beanName);
+
+//            populateBean(beanName,instance);
+
+            //通过这样一调用，相当于给我们自己留有了可操作的空间
+            return this.beanWrapperMap.get(beanName).getWrappedInstance();
+        }catch (Exception e){
             e.printStackTrace();
         }
 
-        return null ;
+        return null;
     }
 
     private MyAopConfig instantionAopConfig(MyBeanDefinition beanDefinition) throws Exception{
@@ -152,9 +168,25 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
     }
 
     private Object instantionBean(MyBeanDefinition beanDefinition) {
-        Object bean = new Object();
+        Object instance = null;
+        String className = beanDefinition.getBeanClassName();
+        try{
 
-       return bean ;
+            //因为根据Class才能确定一个类是否有实例
+            if(this.beanCacheMap.containsKey(className)){
+                instance = this.beanCacheMap.get(className);
+            }else{
+                Class<?> clazz = Class.forName(className);
+                instance = clazz.newInstance();
+                this.beanCacheMap.put(className,instance);
+            }
+
+            return instance;
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     private void doRegistry(List<String> beanDefinitions) {
@@ -187,6 +219,11 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
         }
 
     }
+    public String[] getBeanDefinitionNames() {
+        return this.beanDefinitionMap.keySet().toArray(new String[this.beanDefinitionMap.size()]);
+    }
 
-
+    public Properties getConfig(){
+        return this.beanDefinitionReader.getConfig();
+    }
 }

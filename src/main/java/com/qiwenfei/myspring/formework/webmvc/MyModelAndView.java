@@ -6,13 +6,13 @@ import java.util.Map;
  * 2018/9/7
  * sunshine
  */
-public class MyModeAndView {
+public class MyModelAndView {
 
     private  String viewName ;
 
     private Map<String,?> model;
 
-    public MyModeAndView(String viewName, Map<String, ?> model) {
+    public MyModelAndView(String viewName, Map<String, ?> model) {
         this.viewName = viewName;
         this.model = model;
     }
