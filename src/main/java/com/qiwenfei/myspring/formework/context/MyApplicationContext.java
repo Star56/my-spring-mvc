@@ -46,10 +46,10 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
         //定位
         this.beanDefinitionReader = new MyBeanDefinitionReader(this.configLocations);
 
-        //加载
+        //加载 获取之前扫描得到的class集合
         List<String> beanDefinitions = beanDefinitionReader.loadBeanDefinitons();
 
-        //注册
+        //注册  根据class获取封装的beanDefinition,都存放在Map<String,MyBeanDefinition> beanDefinitionMap
         doRegistry(beanDefinitions);
 
         //依赖注入
